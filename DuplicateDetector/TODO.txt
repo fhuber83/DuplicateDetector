@@ -1,0 +1,13 @@
+- Add a million null checks (sigh)
+- Offer more options for opening files
+	- Image viewer
+	- Audio player
+	- PDF viewer
+	- ...
+- When deleting files, update size info
+- When deleting all duplicates (count==1), remove that item from the main view
+- When multiple files are selected, deleting from the context menu should delete all selected
+- Allow adding folders to an already existing
+- Show summary of duplicated files/size
+- Hide Hash? Make Optional??
+- Make DiffPDF portable (again)
