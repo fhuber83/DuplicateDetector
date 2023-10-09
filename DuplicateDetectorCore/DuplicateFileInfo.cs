@@ -1,4 +1,4 @@
-﻿namespace DuplicateDetector
+﻿namespace DuplicateDetectorCore
 {
     public class DuplicateFileInfo
     {

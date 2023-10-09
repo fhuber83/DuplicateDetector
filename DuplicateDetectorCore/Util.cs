@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DuplicateDetector
+namespace DuplicateDetectorCore
 {
-    internal class Util
+    public class Util
     {
         public static string GetReadableSizeString(long size)
         {

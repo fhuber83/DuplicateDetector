@@ -8,7 +8,7 @@ using System.Security.Policy;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
-using static DuplicateDetector.MainWindow;
+using DuplicateDetectorCore;
 
 namespace DuplicateDetector
 {

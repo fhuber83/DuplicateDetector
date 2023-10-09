@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "DuplicateDetector_WinUI (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "DuplicateDetector_WinUI (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
