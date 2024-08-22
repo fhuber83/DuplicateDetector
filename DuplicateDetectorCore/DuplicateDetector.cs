@@ -47,7 +47,10 @@ namespace DuplicateDetectorCore
 
                         list.Add(file);
 
-                        status?.Invoke(ProcessingStage.Enumerating, null, list.Count);
+                        if (list.Count % 100 == 0)
+                        {
+                            status?.Invoke(ProcessingStage.Enumerating, null, list.Count);
+                        }
                     }
                 }
                 catch (Exception)
@@ -164,11 +167,15 @@ namespace DuplicateDetectorCore
                     }
                 }
 
-                long totalSize = 0L;
-                foreach(var file in listOfFiles)
-                {
-                    totalSize += new FileInfo(file).Length;
-                }
+                //long totalSize = 0L;
+                //foreach(var file in listOfFiles)
+                //{
+                //    try
+                //    {
+                //        totalSize += new FileInfo(file).Length;
+                //    }
+                //    catch { }   
+                //}
 
                 int maxCount = listOfFiles.Count;
 
@@ -177,12 +184,12 @@ namespace DuplicateDetectorCore
                 // Calculate hashes in parallel (Processing stage)
                 var infoBag = new ConcurrentBag<DuplicateFileInfo>();
 
-                long bytesDone = 0L;
+                //long bytesDone = 0L;
 
                 ParallelOptions parallelOptions = new()
                 {
                     CancellationToken = cancellationToken,
-                    MaxDegreeOfParallelism = Environment.ProcessorCount * 2
+                    MaxDegreeOfParallelism = Environment.ProcessorCount
                 };
 
                 try
@@ -192,12 +199,12 @@ namespace DuplicateDetectorCore
                         ProcessFile(file, infoBag);
 
                         Interlocked.Increment(ref count);
-                        Interlocked.Add(ref bytesDone, new FileInfo(file).Length);
+                        //Interlocked.Add(ref bytesDone, new FileInfo(file).Length);
 
                         if (status != null)
                         {
-                            //var percentage = (count * 100.0) / maxCount;
-                            var percentage = (bytesDone * 100.0) / totalSize;
+                            var percentage = (count * 100.0) / maxCount;
+                            //var percentage = (bytesDone * 100.0) / totalSize;
                             
                             status(ProcessingStage.Processing, percentage, null);
                         }
@@ -218,13 +225,15 @@ namespace DuplicateDetectorCore
                 // Post-processing stage
                 int num = infoBag.Count;
                 int done = 0;
+                long totalSize = 0L;
 
+                // infoBag contains one entry for each file
                 foreach (var info in infoBag)
                 {
                     if(status != null)
                     {
                         var percentage = (done * 100.0) / num;
-                        status(ProcessingStage.PostProcessing, percentage, null);
+                        status(ProcessingStage.PostProcessing, 0.5 * percentage, null);
                     }
 
                     // Copy item from bag to List
@@ -242,59 +251,62 @@ namespace DuplicateDetectorCore
                     // Add this item to the hash map
                     hashMap[info.Hash].Files.Add(info);
 
-                    // Set each item's "number of duplicate" counter
-                    foreach (var item in hashMap[info.Hash].Files)
-                    {
-                        item.Count = hashMap[info.Hash].Files.Count;
-                    }
+                    done += 1;
+                } // for each item in infoBag
 
+                done = 0;
+                num = hashMap.Keys.Count;
+
+                Parallel.ForEach(hashMap.Keys, parallelOptions, hash =>
+                {
+                    var progress = (100.0 * done) / num;
+                    status?.Invoke(ProcessingStage.PostProcessing, 50.0 + 0.5 * progress, 0);
+
+                    var numFilesWithThisHash = hashMap[hash].Files.Count;
+
+                    // Set each item's "number of duplicate" counter
+                    foreach (var item in hashMap[hash].Files)
+                    {
+                        item.Count = numFilesWithThisHash;
+                    }
 
                     // Update filenames string
-                    var distinctNames = hashMap[info.Hash].Files.Select(x => x.FileName).Distinct().ToList();
+                    var distinctNames = hashMap[hash].Files.Select(x => x.FileName).Distinct().ToList();
 
+                    var sb = new StringBuilder();
+
+                    for (int i = 0; i < distinctNames.Count; i++)
                     {
-                        var sb = new StringBuilder();
+                        sb.Append(distinctNames[i]);
 
-                        for (int i = 0; i < distinctNames.Count; i++)
+                        if (i < (distinctNames.Count - 1))
                         {
-                            sb.Append(distinctNames[i]);
-
-                            if (i < (distinctNames.Count - 1))
-                            {
-                                sb.Append(", ");
-                            }
+                            sb.Append(", ");
                         }
-
-                        hashMap[info.Hash].FileNames = sb.ToString();
                     }
+
+                    hashMap[hash].FileNames = sb.ToString();
 
 
                     // Calculate the total number of bytes used for each hash
-                    try
-                    {
-                        Parallel.ForEach(hashMap.Keys, parallelOptions, hash =>
-                        {
-                            long total = 0;
+                    long total = 0;
 
-                            foreach (var item in hashMap[hash].Files)
-                            {
-                                total += item.FileSize;
-                            }
+                    var files = hashMap[hash].Files;
 
-                            hashMap[hash].TotalSize = total;
-                        });
-                    }
-                    catch (OperationCanceledException)
+                    foreach (var item in files)
                     {
-                        return (false, null, null, 0L);
+                        total += item.FileSize;
                     }
 
-                    done += 1;
-                }
+                    hashMap[hash].TotalSize = total;
+
+                    Interlocked.Add(ref totalSize, hashMap[hash].TotalSize);
+                    Interlocked.Increment(ref done);
+                });
 
                 TotalSize = totalSize;
 
-                return (true, fileInfos, hashMap, totalSize);
+                return (true, fileInfos, hashMap, TotalSize);
             });
 
 
@@ -326,12 +338,17 @@ namespace DuplicateDetectorCore
             {
                 var fileInfo = new System.IO.FileInfo(path);
 
-                //using (var fileStream = File.OpenRead(path))
-                //{
-                //    sha1.ComputeHash(fileStream);
+                //if(fileInfo.Length < (2L * 1024L * 1024L * 1024L))
+                //{ 
+                //    sha1.ComputeHash(File.ReadAllBytes(path));
                 //}
-
-                sha1.ComputeHash(File.ReadAllBytes(path));
+                //else
+                {
+                    using (var fileStream = File.OpenRead(path))
+                    {
+                        sha1.ComputeHash(fileStream);
+                    }
+                }
 
                 if (sha1.Hash is null)
                     throw new Exception("Unable to calculate hash");
