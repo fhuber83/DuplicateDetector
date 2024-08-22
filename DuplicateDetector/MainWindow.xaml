@@ -17,13 +17,26 @@
             <StatusBarItem x:Name="StatusBarItem1">
                 <Label x:Name="StatusLabel" Content="Drop Files and Directories to start"/>
             </StatusBarItem>
+            <StatusBarItem HorizontalAlignment="Right">
+                <StackPanel Orientation="Horizontal">
+                    <CheckBox x:Name="CheckBoxShowAll" Content="Show All" ToolTip="Show files without duplicates?" Margin="0,0,10,0" Checked="CheckBoxShowAll_Checked" Unchecked="CheckBoxShowAll_Checked"/>
+                    <CheckBox x:Name="CheckBoxShowHashes" Content="Show Hashes" Margin="0,0,10,0" Checked="CheckBoxShowHashes_Checked" Unchecked="CheckBoxShowHashes_Checked"/>
+                </StackPanel>
+            </StatusBarItem>
         </StatusBar>
         <Grid>
             <ListView Margin="0" x:Name="ListViewFiles" ItemContainerStyle="{StaticResource listViewItemStyle}" AllowDrop="True" PreviewDragEnter="ListViewFiles_DragEnter" Drop="ListViewFiles_Drop" GridViewColumnHeader.Click="GridViewColumnHeaderClickedHandler">
+                <ListView.ContextMenu>
+                    <ContextMenu x:Name="ContextMenuMainList">
+                        <MenuItem Header="Add folders..." Click="MenuItemAddFolder_Click"/>
+                        <Separator/>
+                        <MenuItem Header="Clear" Click="MenuItemClearSession_Click"/>
+                    </ContextMenu>
+                </ListView.ContextMenu>
                 <ListView.View>
                     <GridView>
                         <GridViewColumn Header="File Name(s)" Width="300" DisplayMemberBinding="{Binding Path=Value.FileNames}"/>
-                        <GridViewColumn Header="Hash" Width="300" DisplayMemberBinding="{Binding Path=Key}"/>
+                        <GridViewColumn x:Name="ListColumnHash" Header="Hash" Width="0" DisplayMemberBinding="{Binding Path=Key}" />
                         <GridViewColumn Width="100" DisplayMemberBinding="{Binding Path=Value.Files.Count}">
                             <GridViewColumnHeader x:Name="ColumnHeaderForCount" Content="Count"/>
                         </GridViewColumn>

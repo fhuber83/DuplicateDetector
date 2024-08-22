@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection.Emit;
 using System.Security.Cryptography;
@@ -13,7 +14,7 @@ namespace DuplicateDetectorCore
 {
     public class DuplicateDetector
     {
-        public static void GetFileNamesRecursively(string rootPath, List<string> list, CancellationToken token)
+        public static void GetFileNamesRecursively(string rootPath, List<string> list, CancellationToken token, UpdateStatus status)
         {
             if (!Directory.Exists(rootPath))
                 throw new ArgumentException("Must be an existing directory", nameof(rootPath));
@@ -45,6 +46,8 @@ namespace DuplicateDetectorCore
                             break;
 
                         list.Add(file);
+
+                        status?.Invoke(ProcessingStage.Enumerating, null, list.Count);
                     }
                 }
                 catch (Exception)
@@ -58,27 +61,36 @@ namespace DuplicateDetectorCore
         {
             try
             {
-                SHA1 sha1 = SHA1.Create();
-
-                sha1.ComputeHash(File.ReadAllBytes(path));
-
-                if (sha1.Hash is not null)
+                //using (SHA1 sha1 = SHA1.Create())
                 {
-                    var hashString = CalculateHash(path);
+                    //var bytes = File.ReadAllBytes(path);
+                    //sha1.ComputeHash(bytes);
+                    //bytes = null;
 
-                    var fileInfo = new FileInfo(path);
-
-                    var item = new DuplicateFileInfo
+                    //if (sha1.Hash is not null)
                     {
-                        FileName = System.IO.Path.GetFileName(path),
-                        Path = System.IO.Path.GetDirectoryName(path),
-                        Hash = hashString,
-                        FileSize = fileInfo.Length,
-                        LastChange = fileInfo.LastWriteTime,
-                        CreationTime = fileInfo.CreationTime
-                    };
+                        //var sb = new StringBuilder();
 
-                    list.Add(item);
+                        //foreach (var b in sha1.Hash)
+                        //{
+                        //    sb.Append($"{b:X2}");
+                        //}
+                        var hashString = CalculateHash(path); // sb.ToString();
+
+                        var fileInfo = new FileInfo(path);
+
+                        var item = new DuplicateFileInfo
+                        {
+                            FileName = System.IO.Path.GetFileName(path),
+                            Path = System.IO.Path.GetDirectoryName(path),
+                            Hash = hashString,
+                            FileSize = fileInfo.Length,
+                            LastChange = fileInfo.LastWriteTime,
+                            CreationTime = fileInfo.CreationTime
+                        };
+
+                        list.Add(item);
+                    }
                 }
             }
             catch (Exception)
@@ -96,10 +108,6 @@ namespace DuplicateDetectorCore
         /// </summary>
         public Dictionary<String, HashSummaryItem>? HashMap = null;
 
-        /// <summary>
-        /// List of all files
-        /// </summary>
-        //public List<DuplicateFileInfo>? FileItems = null;
 
         public enum ProcessingStage
         {
@@ -112,14 +120,15 @@ namespace DuplicateDetectorCore
 
         public delegate void UpdateStatus(ProcessingStage stage, double? percentage, int? total);
 
-        public async Task ProcessDirectoryAsync(string[] files, bool keepSingleFiles, CancellationToken cancellationToken, UpdateStatus status)
+        public long TotalSize { get; private set; } = 0L;
+
+        public async Task ProcessDirectoryAsync(string[] files, bool keepSingleFiles, CancellationToken cancellationToken, UpdateStatus status = null)
         {
             var result = await Task.Run(() =>
             {
                 var fileInfos = new List<DuplicateFileInfo>();
                 var hashMap = new Dictionary<string, HashSummaryItem>();
-                long totalSize = 0L;
-
+                
                 // Create a list of all files to check
 
                 if(status != null)
@@ -142,7 +151,7 @@ namespace DuplicateDetectorCore
 
                     if (Directory.Exists(file))
                     {
-                        GetFileNamesRecursively(file, listOfFiles, cancellationToken);
+                        GetFileNamesRecursively(file, listOfFiles, cancellationToken, status);
                     }
                     else if (File.Exists(file))
                     {
@@ -155,6 +164,12 @@ namespace DuplicateDetectorCore
                     }
                 }
 
+                long totalSize = 0L;
+                foreach(var file in listOfFiles)
+                {
+                    totalSize += new FileInfo(file).Length;
+                }
+
                 int maxCount = listOfFiles.Count;
 
                 int count = 0;
@@ -162,10 +177,12 @@ namespace DuplicateDetectorCore
                 // Calculate hashes in parallel (Processing stage)
                 var infoBag = new ConcurrentBag<DuplicateFileInfo>();
 
+                long bytesDone = 0L;
+
                 ParallelOptions parallelOptions = new()
                 {
                     CancellationToken = cancellationToken,
-                    MaxDegreeOfParallelism = Environment.ProcessorCount
+                    MaxDegreeOfParallelism = Environment.ProcessorCount * 2
                 };
 
                 try
@@ -175,10 +192,13 @@ namespace DuplicateDetectorCore
                         ProcessFile(file, infoBag);
 
                         Interlocked.Increment(ref count);
+                        Interlocked.Add(ref bytesDone, new FileInfo(file).Length);
 
-                        if(status != null)
+                        if (status != null)
                         {
-                            var percentage = (count * 100.0) / maxCount;
+                            //var percentage = (count * 100.0) / maxCount;
+                            var percentage = (bytesDone * 100.0) / totalSize;
+                            
                             status(ProcessingStage.Processing, percentage, null);
                         }
                     });
@@ -210,7 +230,7 @@ namespace DuplicateDetectorCore
                     // Copy item from bag to List
                     fileInfos.Add(info);
 
-                    totalSize += info.FileSize;
+                    //totalSize += info.FileSize;
 
                     // Hash already in map?
                     if (!hashMap.ContainsKey(info.Hash))
@@ -272,6 +292,8 @@ namespace DuplicateDetectorCore
                     done += 1;
                 }
 
+                TotalSize = totalSize;
+
                 return (true, fileInfos, hashMap, totalSize);
             });
 
@@ -297,50 +319,34 @@ namespace DuplicateDetectorCore
         }
 
 
-        const long blockSize = 1024L * 1024L * 256L; // Number of bytes to process at a time
 
         public static string CalculateHash(string path)
         {
-            SHA1 sha1 = SHA1.Create();
-
-            var fileInfo = new System.IO.FileInfo(path);
-
-            // Process entire file at once
-            if (fileInfo.Length <= blockSize)
+            using (SHA1 sha1 = SHA1.Create())
             {
+                var fileInfo = new System.IO.FileInfo(path);
+
+                //using (var fileStream = File.OpenRead(path))
+                //{
+                //    sha1.ComputeHash(fileStream);
+                //}
+
                 sha1.ComputeHash(File.ReadAllBytes(path));
-            }
-            else
-            {
-                var buffer = new byte[blockSize];
 
-                var fileStream = File.OpenRead(path);
+                if (sha1.Hash is null)
+                    throw new Exception("Unable to calculate hash");
 
-                long sizeRemaining = fileInfo.Length;
+                var sb = new StringBuilder();
 
-                while (sizeRemaining > 0L)
+                foreach (var b in sha1.Hash)
                 {
-                    long sizeToRead = sizeRemaining < blockSize ? sizeRemaining : blockSize;
-
-                    int bytesRead = fileStream.Read(buffer, 0, (int)sizeToRead);
-
-                    sha1.ComputeHash(buffer, 0, bytesRead);
-
-                    sizeRemaining -= sizeToRead;
+                    sb.Append($"{b:X2}");
                 }
+
+                sha1.Clear();
+
+                return sb.ToString();
             }
-
-            if (sha1.Hash is null)
-                throw new Exception("Unable to calculate hash");
-
-            var sb = new StringBuilder();
-
-            foreach (var b in sha1.Hash)
-            {
-                sb.Append($"{b:X2}");
-            }
-
-            return sb.ToString();
         }
 
         public void MergeWith(DuplicateDetector other)
@@ -350,9 +356,21 @@ namespace DuplicateDetectorCore
                 // Hash already exists, update existing items
                 if (HashMap.ContainsKey(hash))
                 {
-                    HashMap[hash].Files.AddRange(other.HashMap[hash].Files);
-                    HashMap[hash].TotalSize += other.HashMap[hash].TotalSize;
+                    foreach(var otherFile in other.HashMap[hash].Files)
+                    {
+                        // Only copy files that are not already in the list
+                        if(!HashMap[hash].Files.Any(x => x.Path == otherFile.Path))
+                        {
+                            HashMap[hash].Files.Add(otherFile);
+                            HashMap[hash].TotalSize += otherFile.FileSize;
+                        }
+                        else
+                        {
+                            Debug.Print("Ignoring file {0}", otherFile.FileName);
+                        }
+                    }
 
+                    // Update list of distinct file names
                     var distinctNames = HashMap[hash].Files.Select(x => x.FileName).Distinct().ToList();
 
                     {
@@ -373,10 +391,13 @@ namespace DuplicateDetectorCore
 
                 }
 
-                // New hash, simply copy from other
+                // New hash, add duplicate files from other
                 else
                 {
-                    HashMap.Add(hash, other.HashMap[hash]);
+                    if (other.HashMap[hash].Files.Count > 1)
+                    {
+                        HashMap.Add(hash, other.HashMap[hash]);
+                    }
                 }
             }
         }

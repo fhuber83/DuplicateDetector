@@ -17,12 +17,15 @@ using System.ComponentModel;
 using System.Security.Policy;
 using System.Reflection;
 using DuplicateDetectorCore;
+using System.Diagnostics.Eventing.Reader;
 
 namespace DuplicateDetector
 {
     public partial class MainWindow : Window
     {
         public DuplicateDetectorCore.DuplicateDetector CurrentSession { get; set; } = null;
+
+        public bool ShowAll { get; set; }
 
         public MainWindow()
         {
@@ -31,63 +34,9 @@ namespace DuplicateDetector
             var version = Assembly.GetExecutingAssembly().GetName().Version;
 
             Title += $" v{version.Major}.{version.Minor}.{version.Build}";
+            
+            CheckBoxShowAll.IsChecked = ShowAll;
         }
-
-
-        private void ProcessFile(string path, List<DuplicateFileInfo> fileItems, Dictionary<string, HashSummaryItem> hashMap)
-        {
-            try
-            {
-                var hashString = DuplicateDetectorCore.DuplicateDetector.CalculateHash(path);
-
-                var fileInfo = new FileInfo(path);
-
-                var item = new DuplicateFileInfo
-                {
-                    FileName = System.IO.Path.GetFileName(path),
-                    Path = System.IO.Path.GetDirectoryName(path),
-                    Hash = hashString,
-                    FileSize = fileInfo.Length,
-                    LastChange = fileInfo.LastWriteTime,
-                    CreationTime = fileInfo.CreationTime
-                };
-
-                // We have a possible duplicate
-                if (hashMap.ContainsKey(hashString))
-                {
-                    var duplicateCount = 1; // Count this file, too
-
-                    foreach (var duplicate in hashMap[hashString].Files)
-                    {
-                        duplicateCount++;
-                    }
-
-                    hashMap[hashString].Files.Add(item);
-
-                    foreach (var dupItem in hashMap[hashString].Files)
-                    {
-                        dupItem.Count = duplicateCount;
-                    }
-                }
-
-                // First file with this hash
-                else
-                {
-                    hashMap.Add(hashString, new HashSummaryItem());
-
-                    hashMap[hashString].Files.Add(item);
-                }
-
-                fileItems.Add(item);
-            }
-            catch (Exception)
-            {
-
-            }
-        }
-
-        
-
 
 
         private void ListViewItemDoubleClicked(object sender, MouseButtonEventArgs e)
@@ -135,6 +84,28 @@ namespace DuplicateDetector
 
         private CancellationTokenSource? CancellationTokenSource = null;
 
+        private Dictionary<string, HashSummaryItem> DisplayedFiles = null;
+
+        private void UpdateFileList()
+        {
+            if (CurrentSession is null || CurrentSession.HashMap is null)
+                return;
+
+            var duplicates = new Dictionary<string, HashSummaryItem>();
+
+            foreach (var hash in CurrentSession.HashMap.Keys)
+            {
+                if (CurrentSession.HashMap[hash].Files.Count > 1 || ShowAll)
+                {
+                    duplicates.Add(hash, CurrentSession.HashMap[hash]);
+                }
+            }
+
+            DisplayedFiles = duplicates;
+            ListViewFiles.ItemsSource = DisplayedFiles;
+            CollectionViewSource.GetDefaultView(ListViewFiles.ItemsSource).Refresh();
+        }
+
 
         private async void ListViewFiles_Drop(object sender, DragEventArgs e)
         {
@@ -146,7 +117,10 @@ namespace DuplicateDetector
 
             CancellationTokenSource = new CancellationTokenSource();
 
-            var oldContent = StatusBarItem1.Content;
+            ContextMenuMainList.IsEnabled = false;
+
+            var timeBefore = DateTime.UtcNow;
+
             var progressBar = new ProgressBar() { Width = 100 };
             var statusLabel = new Label { Content = "Processing (Enumerating files)..." };
             var linkCancel = new Hyperlink(new Run("Click to cancel"));
@@ -162,7 +136,7 @@ namespace DuplicateDetector
             var files = (string[]) e.Data.GetData(DataFormats.FileDrop);
 
             var duplicateDetector = new DuplicateDetectorCore.DuplicateDetector();
-            await duplicateDetector.ProcessDirectoryAsync(files, addToSession, CancellationTokenSource.Token, (stage, percentage, total) =>
+            await duplicateDetector.ProcessDirectoryAsync(files, keepSingleFiles: true, CancellationTokenSource.Token, (stage, percentage, total) =>
             {
                 string? str = null;
 
@@ -189,11 +163,10 @@ namespace DuplicateDetector
                         break;
                 }
 
-                //StatusBarItem1.Dispatcher.BeginInvoke(() => StatusBarItem1.Content = str ?? "Unknown");
-                statusLabel.Dispatcher.BeginInvoke(() => statusLabel.Content = str ?? "Unknown");
+                statusLabel.Dispatcher.Invoke(() => statusLabel.Content = str ?? "Unknown");
                 if(percentage.HasValue)
                 {
-                    progressBar.Dispatcher.BeginInvoke(() => progressBar.Value = percentage.Value);
+                    progressBar.Dispatcher.Invoke(() => progressBar.Value = percentage.Value);
                 }
             });
 
@@ -205,12 +178,49 @@ namespace DuplicateDetector
             else
             {
                 CurrentSession = duplicateDetector;
-                ListViewFiles.ItemsSource = CurrentSession.HashMap;
             }
+
+            UpdateFileList();
+
+            ContextMenuMainList.IsEnabled = true;
 
             CancellationTokenSource = null;
 
-            StatusBarItem1.Content = oldContent;
+            if (CurrentSession != null && CurrentSession.HashMap != null)
+            {
+
+                int numDuplicates = 0;
+                long duplicateBytes = 0;
+
+                foreach (var item in CurrentSession.HashMap.Values)
+                {
+                    if (item.Files.Count > 1)
+                    {
+                        numDuplicates += item.Files.Count - 1;
+                        duplicateBytes += item.TotalSize;
+                    }
+                }
+
+                var timeAfter = DateTime.UtcNow;
+                var timeTaken = timeAfter - timeBefore;
+                var MegsProcessed = duplicateDetector.TotalSize / (1024.0 * 1024.0);
+                var MegsPerSecond = MegsProcessed / timeTaken.TotalSeconds;
+
+                if (numDuplicates > 0)
+                {
+                    StatusBarItem1.Content = $"Done. Found {DuplicateDetectorCore.Util.GetReadableSizeString(duplicateBytes)} in {numDuplicates} duplicate{(numDuplicates == 1 ? "" : "s")}. {MegsPerSecond:F1} MB/s";
+                }
+                else
+                {
+                    StatusBarItem1.Content = $"Done. No duplicates found. {MegsPerSecond:F1} MB/s";
+                }
+
+                StatusBarItem1.ToolTip = $"Processed {MegsProcessed:F1} MB in {timeTaken.TotalSeconds:F1} seconds ({MegsPerSecond:F1} MB/s)";
+            }
+            else
+            {
+                StatusBarItem1.Content = "Cancelled";
+            }
         }
 
 
@@ -299,6 +309,46 @@ namespace DuplicateDetector
         private void Window_Closing(object sender, CancelEventArgs e)
         {
             CancellationTokenSource?.Cancel();
+        }
+
+        private void CheckBoxShowAll_Checked(object sender, RoutedEventArgs e)
+        {
+            ShowAll = CheckBoxShowAll.IsChecked!.Value;
+            UpdateFileList();
+        }
+
+        private async void MenuItemAddFolder_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new OpenFolderDialog
+            {
+                Multiselect = true
+            };
+
+            if(dlg.ShowDialog() == true)
+            {
+                foreach(var folder in dlg.FolderNames)
+                {
+                }
+            }
+        }
+
+        private void CheckBoxShowHashes_Checked(object sender, RoutedEventArgs e)
+        {
+            ListColumnHash.Width = CheckBoxShowHashes.IsChecked == true ? 300 : 0;
+        }
+
+        private void MenuItemClearSession_Click(object sender, RoutedEventArgs e)
+        {
+            if(CurrentSession?.HashMap?.Count > 0)
+            {
+                if (MessageBox.Show(this, "Clear list and start a new session?", "DuplicateDetector", MessageBoxButton.OKCancel, MessageBoxImage.Question) == MessageBoxResult.OK)
+                {
+                    ListViewFiles.ItemsSource = null;
+                    CurrentSession = null;
+                    DisplayedFiles = null;
+                    StatusBarItem1.Content = "Session cleared";
+                }
+            }
         }
     }
 }

@@ -40,11 +40,11 @@ namespace DuplicateDetector
 
         private void MenuItemDeleteClicked(object sender, RoutedEventArgs e)
         {
-            if(ListViewDuplicateDetails.SelectedItems.Count > 0)
+            if (ListViewDuplicateDetails.SelectedItems.Count > 0)
             {
                 var filesToDelete = new List<DuplicateFileInfo>();
 
-                foreach(DuplicateFileInfo fileInfo in ListViewDuplicateDetails.SelectedItems)
+                foreach (DuplicateFileInfo fileInfo in ListViewDuplicateDetails.SelectedItems)
                 {
                     filesToDelete.Add(fileInfo);
                 }
@@ -130,7 +130,7 @@ namespace DuplicateDetector
 
         private void OpenFileInHexEditor(DuplicateFileInfo fileInfo)
         {
-            if(File.Exists(@"Tools\HxD\HxD64.exe"))
+            if (File.Exists(@"Tools\HxD\HxD64.exe"))
             {
                 var startInfo = new System.Diagnostics.ProcessStartInfo();
 
@@ -182,7 +182,7 @@ namespace DuplicateDetector
                     }
                 }
 
-                if(winMergeFound)
+                if (winMergeFound)
                 {
                     var startInfo = new System.Diagnostics.ProcessStartInfo();
 
@@ -216,7 +216,7 @@ namespace DuplicateDetector
         {
             if (sender is MenuItem menuItem && menuItem.DataContext is DuplicateFileInfo fileInfo)
             {
-                ShowFileInExplorer(fileInfo);    
+                ShowFileInExplorer(fileInfo);
             }
         }
 
@@ -331,7 +331,7 @@ namespace DuplicateDetector
         {
             var fullPath = Path.Combine(fileInfo.Path, fileInfo.FileName);
 
-            if(!File.Exists(fullPath))
+            if (!File.Exists(fullPath))
                 return;
 
             var startInfo = new System.Diagnostics.ProcessStartInfo();
@@ -352,7 +352,7 @@ namespace DuplicateDetector
             {
                 return;
             }
-            
+
 
             foreach (var file in files)
             {
@@ -382,13 +382,13 @@ namespace DuplicateDetector
             // Create list of selected file info
             var fileInfos = new List<DuplicateFileInfo>();
 
-            foreach(DuplicateFileInfo info in ListViewDuplicateDetails.SelectedItems)
+            foreach (DuplicateFileInfo info in ListViewDuplicateDetails.SelectedItems)
             {
                 fileInfos.Add(info);
             }
 
             // Action depending on which key was pressed
-            switch(e.Key)
+            switch (e.Key)
             {
                 // Open File
                 case System.Windows.Input.Key.Enter:
@@ -405,13 +405,13 @@ namespace DuplicateDetector
                 case System.Windows.Input.Key.Delete:
 
                     DeleteFiles(fileInfos);
-                    
+
                     break;
 
                 // Show in folder
                 case System.Windows.Input.Key.F:
-                
-                    foreach(var item in fileInfos)
+
+                    foreach (var item in fileInfos)
                     {
                         ShowFileInExplorer(item);
                     }
@@ -442,7 +442,7 @@ namespace DuplicateDetector
 
         private void MenuItemCompareFilesClicked(object sender, RoutedEventArgs e)
         {
-            if(ListViewDuplicateDetails.SelectedItems.Count != 2)
+            if (ListViewDuplicateDetails.SelectedItems.Count != 2)
                 return;
 
             if (ListViewDuplicateDetails.SelectedItems[0] is DuplicateFileInfo info1 &&
