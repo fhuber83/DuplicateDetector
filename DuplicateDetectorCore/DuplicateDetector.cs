@@ -167,16 +167,6 @@ namespace DuplicateDetectorCore
                     }
                 }
 
-                //long totalSize = 0L;
-                //foreach(var file in listOfFiles)
-                //{
-                //    try
-                //    {
-                //        totalSize += new FileInfo(file).Length;
-                //    }
-                //    catch { }   
-                //}
-
                 int maxCount = listOfFiles.Count;
 
                 int count = 0;
@@ -184,7 +174,6 @@ namespace DuplicateDetectorCore
                 // Calculate hashes in parallel (Processing stage)
                 var infoBag = new ConcurrentBag<DuplicateFileInfo>();
 
-                //long bytesDone = 0L;
 
                 ParallelOptions parallelOptions = new()
                 {
@@ -199,12 +188,10 @@ namespace DuplicateDetectorCore
                         ProcessFile(file, infoBag);
 
                         Interlocked.Increment(ref count);
-                        //Interlocked.Add(ref bytesDone, new FileInfo(file).Length);
 
                         if (status != null)
                         {
                             var percentage = (count * 100.0) / maxCount;
-                            //var percentage = (bytesDone * 100.0) / totalSize;
                             
                             status(ProcessingStage.Processing, percentage, null);
                         }
@@ -233,13 +220,11 @@ namespace DuplicateDetectorCore
                     if(status != null)
                     {
                         var percentage = (done * 100.0) / num;
-                        status(ProcessingStage.PostProcessing, 0.5 * percentage, null);
+                        status(ProcessingStage.PostProcessing, 0.75 * percentage, null);
                     }
 
                     // Copy item from bag to List
                     fileInfos.Add(info);
-
-                    //totalSize += info.FileSize;
 
                     // Hash already in map?
                     if (!hashMap.ContainsKey(info.Hash))
@@ -260,7 +245,7 @@ namespace DuplicateDetectorCore
                 Parallel.ForEach(hashMap.Keys, parallelOptions, hash =>
                 {
                     var progress = (100.0 * done) / num;
-                    status?.Invoke(ProcessingStage.PostProcessing, 50.0 + 0.5 * progress, 0);
+                    status?.Invoke(ProcessingStage.PostProcessing, 75.0 + 0.25 * progress, 0);
 
                     var numFilesWithThisHash = hashMap[hash].Files.Count;
 

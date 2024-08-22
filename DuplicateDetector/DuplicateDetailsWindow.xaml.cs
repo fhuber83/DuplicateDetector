@@ -16,14 +16,20 @@ namespace DuplicateDetector
     {
         public List<DuplicateFileInfo> Duplicates { get; set; }
 
-        public bool IsDiffToolEnabled
-        {
-            get => ListViewDuplicateDetails.SelectedItems.Count == 2;
-            set
-            {
-                OnPropertyChanged();
-            }
-        }
+        //public bool IsDiffToolEnabled
+        //{
+        //    get
+        //    {
+        //        if (ListViewDuplicateDetails is null || ListViewDuplicateDetails.SelectedItems is null)
+        //            return false;
+
+        //        return ListViewDuplicateDetails.SelectedItems.Count == 2;
+        //    }
+        //    set
+        //    {
+        //        OnPropertyChanged();
+        //    }
+        //}
 
         public DuplicateDetailsWindow(string hash, List<DuplicateFileInfo> duplicates)
         {
@@ -63,7 +69,7 @@ namespace DuplicateDetector
 
         private void ListViewDuplicateDetails_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            IsDiffToolEnabled = ListViewDuplicateDetails.SelectedItems.Count == 2;
+            //IsDiffToolEnabled = ListViewDuplicateDetails.SelectedItems.Count == 2;
         }
 
         private void ButtonDiffClicked(object sender, RoutedEventArgs e)

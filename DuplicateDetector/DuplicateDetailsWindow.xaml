@@ -18,21 +18,21 @@
 
         <ListView Margin="10,35,10,10" x:Name="ListViewDuplicateDetails" SelectionChanged="ListViewDuplicateDetails_SelectionChanged" GridViewColumnHeader.Click="GridViewColumnHeaderClickedHandler" KeyDown="ListViewDuplicateDetails_KeyDown">
             <ListView.Resources>
-                <!--<ContextMenu x:Key="ItemContextMenu">
+                <ContextMenu x:Key="ItemContextMenu">
                     <MenuItem Header="Open" Click="MenuItemOpenFileClicked" InputGestureText="Enter" ToolTip="Open file in default program"/>
-                    <MenuItem Header="Delete" Click="MenuItemDeleteClicked" InputGestureText="Del" />
-                    <MenuItem Header="Show in folder" Click="MenuItemShowInFolderClicked" InputGestureText="F"/>
-                    <MenuItem Header="Compare files" Click="MenuItemCompareFilesClicked" InputGestureText="D" ToolTip="Compare two files in diff tool" IsEnabled="{Binding IsDiffToolEnabled,RelativeSource={RelativeSource FindAncestor,AncestorType={x:Type local:DuplicateDetailsWindow}}}"/>
+                    <!--<MenuItem Header="Delete" Click="MenuItemDeleteClicked" InputGestureText="Del" />
+                    <MenuItem Header="Show in folder" Click="MenuItemShowInFolderClicked" InputGestureText="F"/>-->
+                    <!--<MenuItem Header="Compare files" Click="MenuItemCompareFilesClicked" InputGestureText="D" ToolTip="Compare two files in diff tool" IsEnabled="{Binding IsDiffToolEnabled,RelativeSource={RelativeSource FindAncestor,AncestorType={x:Type local:DuplicateDetailsWindow}}}"/>-->
                     <MenuItem Header="Open with">
                         <MenuItem Header="Text Editor" Click="MenuItemOpenWithTextEditorClicked" InputGestureText="T"/>
                         <MenuItem Header="Hex Editor" Click="MenuItemOpenWithHexEditorClicked" InputGestureText="X"/>
                     </MenuItem>
-                </ContextMenu>-->
+                </ContextMenu>
             </ListView.Resources>
             <ListView.ItemContainerStyle>
                 <Style TargetType="{x:Type ListViewItem}" >
                     <EventSetter Event="MouseDoubleClick" Handler="ListViewItemDoubleClicked" />
-                    <!--<Setter Property="ContextMenu" Value="{StaticResource ItemContextMenu}" />-->
+                    <Setter Property="ContextMenu" Value="{StaticResource ItemContextMenu}" />
                 </Style>
             </ListView.ItemContainerStyle>
             <ListView.View>
