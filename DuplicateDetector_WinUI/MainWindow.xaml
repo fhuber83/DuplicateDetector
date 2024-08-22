@@ -8,7 +8,19 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-        <Button x:Name="myButton" Click="myButton_Click">Click Me</Button>
+    <StackPanel Orientation="Vertical" VerticalAlignment="Stretch">
+        <CommandBar VerticalAlignment="Top" HorizontalAlignment="Stretch" Background="Green">
+            <AppBarButton>Click me</AppBarButton>
+        </CommandBar>
+        <ListView Margin="10" Background="White" VerticalAlignment="Stretch">
+            <ListView.Items>
+                <ListViewItem Content="Test1"/>
+                <ListViewItem Content="Test2"/>
+                <ListViewItem Content="Test3"/>
+            </ListView.Items>
+        </ListView>
+        <CommandBar VerticalAlignment="Top" HorizontalAlignment="Stretch" Background="Red">
+            <AppBarButton>Click me instead!</AppBarButton>
+        </CommandBar>
     </StackPanel>
 </Window>

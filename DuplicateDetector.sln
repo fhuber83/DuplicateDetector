@@ -5,11 +5,14 @@ VisualStudioVersion = 17.8.34112.27
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DuplicateDetector", "DuplicateDetector\DuplicateDetector.csproj", "{5227E929-D199-42B2-8B09-8D65A0DAFB8E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DuplicateDetector_WinUI", "DuplicateDetector_WinUI\DuplicateDetector_WinUI.csproj", "{70717757-84DB-4687-B8D0-753859771425}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DuplicateDetectorCore", "DuplicateDetectorCore\DuplicateDetectorCore.csproj", "{449D5877-2A6D-4F24-B682-352F4FEA4D37}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DuplicateDetectorCore", "DuplicateDetectorCore\DuplicateDetectorCore.csproj", "{449D5877-2A6D-4F24-B682-352F4FEA4D37}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DuplicateDetectorTests", "DuplicateDetectorTests\DuplicateDetectorTests.csproj", "{4A3923B1-E52F-4D3C-B064-4D6EB6F91F58}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DuplicateDetectorTests", "DuplicateDetectorTests\DuplicateDetectorTests.csproj", "{4A3923B1-E52F-4D3C-B064-4D6EB6F91F58}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{4110461F-49F6-45E6-94B9-C1192FA47A9D}"
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -39,30 +42,6 @@ Global
 		{5227E929-D199-42B2-8B09-8D65A0DAFB8E}.Release|x64.Build.0 = Release|Any CPU
 		{5227E929-D199-42B2-8B09-8D65A0DAFB8E}.Release|x86.ActiveCfg = Release|Any CPU
 		{5227E929-D199-42B2-8B09-8D65A0DAFB8E}.Release|x86.Build.0 = Release|Any CPU
-		{70717757-84DB-4687-B8D0-753859771425}.Debug|Any CPU.ActiveCfg = Debug|x64
-		{70717757-84DB-4687-B8D0-753859771425}.Debug|Any CPU.Build.0 = Debug|x64
-		{70717757-84DB-4687-B8D0-753859771425}.Debug|Any CPU.Deploy.0 = Debug|x64
-		{70717757-84DB-4687-B8D0-753859771425}.Debug|ARM64.ActiveCfg = Debug|ARM64
-		{70717757-84DB-4687-B8D0-753859771425}.Debug|ARM64.Build.0 = Debug|ARM64
-		{70717757-84DB-4687-B8D0-753859771425}.Debug|ARM64.Deploy.0 = Debug|ARM64
-		{70717757-84DB-4687-B8D0-753859771425}.Debug|x64.ActiveCfg = Debug|x64
-		{70717757-84DB-4687-B8D0-753859771425}.Debug|x64.Build.0 = Debug|x64
-		{70717757-84DB-4687-B8D0-753859771425}.Debug|x64.Deploy.0 = Debug|x64
-		{70717757-84DB-4687-B8D0-753859771425}.Debug|x86.ActiveCfg = Debug|x86
-		{70717757-84DB-4687-B8D0-753859771425}.Debug|x86.Build.0 = Debug|x86
-		{70717757-84DB-4687-B8D0-753859771425}.Debug|x86.Deploy.0 = Debug|x86
-		{70717757-84DB-4687-B8D0-753859771425}.Release|Any CPU.ActiveCfg = Release|x64
-		{70717757-84DB-4687-B8D0-753859771425}.Release|Any CPU.Build.0 = Release|x64
-		{70717757-84DB-4687-B8D0-753859771425}.Release|Any CPU.Deploy.0 = Release|x64
-		{70717757-84DB-4687-B8D0-753859771425}.Release|ARM64.ActiveCfg = Release|ARM64
-		{70717757-84DB-4687-B8D0-753859771425}.Release|ARM64.Build.0 = Release|ARM64
-		{70717757-84DB-4687-B8D0-753859771425}.Release|ARM64.Deploy.0 = Release|ARM64
-		{70717757-84DB-4687-B8D0-753859771425}.Release|x64.ActiveCfg = Release|x64
-		{70717757-84DB-4687-B8D0-753859771425}.Release|x64.Build.0 = Release|x64
-		{70717757-84DB-4687-B8D0-753859771425}.Release|x64.Deploy.0 = Release|x64
-		{70717757-84DB-4687-B8D0-753859771425}.Release|x86.ActiveCfg = Release|x86
-		{70717757-84DB-4687-B8D0-753859771425}.Release|x86.Build.0 = Release|x86
-		{70717757-84DB-4687-B8D0-753859771425}.Release|x86.Deploy.0 = Release|x86
 		{449D5877-2A6D-4F24-B682-352F4FEA4D37}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{449D5877-2A6D-4F24-B682-352F4FEA4D37}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{449D5877-2A6D-4F24-B682-352F4FEA4D37}.Debug|ARM64.ActiveCfg = Debug|Any CPU
