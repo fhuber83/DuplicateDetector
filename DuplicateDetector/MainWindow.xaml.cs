@@ -22,6 +22,8 @@ namespace DuplicateDetector
 {
     public partial class MainWindow : Window
     {
+        public DuplicateDetectorCore.DuplicateDetector CurrentSession { get; set; } = null;
+
         public MainWindow()
         {
             InitializeComponent();
@@ -144,38 +146,71 @@ namespace DuplicateDetector
 
             CancellationTokenSource = new CancellationTokenSource();
 
+            var oldContent = StatusBarItem1.Content;
+            var progressBar = new ProgressBar() { Width = 100 };
+            var statusLabel = new Label { Content = "Processing (Enumerating files)..." };
+            var linkCancel = new Hyperlink(new Run("Click to cancel"));
+            linkCancel.Click += (o, e) => { CancellationTokenSource.Cancel(); };
+            var layout = new StackPanel { Orientation = Orientation.Horizontal };
+            layout.Children.Add(progressBar);
+            layout.Children.Add(statusLabel);
+            layout.Children.Add(new Label { Content = linkCancel });
+            StatusBarItem1.Content = layout;
+
+            bool addToSession = Keyboard.GetKeyStates(Key.LeftCtrl).HasFlag(KeyStates.Down);
+
             var files = (string[]) e.Data.GetData(DataFormats.FileDrop);
 
             var duplicateDetector = new DuplicateDetectorCore.DuplicateDetector();
-            await duplicateDetector.ProcessDirectoryAsync(files, CancellationTokenSource.Token, (stage, percentage) =>
+            await duplicateDetector.ProcessDirectoryAsync(files, addToSession, CancellationTokenSource.Token, (stage, percentage, total) =>
             {
                 string? str = null;
 
                 switch(stage)
                 {
                     case DuplicateDetectorCore.DuplicateDetector.ProcessingStage.Enumerating:
-                        str = "Enumerating";
+                        str = $"Enumerating files ({total.Value} found)";
                         break;
 
                     case DuplicateDetectorCore.DuplicateDetector.ProcessingStage.Processing:
-                        str = "Processing";
+                        str = $"Processing ({percentage:F1}%)";
                         break;
 
                     case DuplicateDetectorCore.DuplicateDetector.ProcessingStage.PostProcessing:
-                        str = $"Processing ({percentage:F1}%)";
+                        str = $"Post-Processing ({percentage:F1}%)";
                         break;
 
                     case DuplicateDetectorCore.DuplicateDetector.ProcessingStage.Done:
                         str = "Done";
                         break;
+
+                    case DuplicateDetectorCore.DuplicateDetector.ProcessingStage.Cancelled:
+                        str = "Cancelled";
+                        break;
                 }
 
-                StatusBarItem1.Dispatcher.BeginInvoke(() => StatusBarItem1.Content = str ?? "Unknown");
+                //StatusBarItem1.Dispatcher.BeginInvoke(() => StatusBarItem1.Content = str ?? "Unknown");
+                statusLabel.Dispatcher.BeginInvoke(() => statusLabel.Content = str ?? "Unknown");
+                if(percentage.HasValue)
+                {
+                    progressBar.Dispatcher.BeginInvoke(() => progressBar.Value = percentage.Value);
+                }
             });
 
-            ListViewFiles.ItemsSource = duplicateDetector.HashMap;
+            if (addToSession && CurrentSession != null)
+            {
+                CurrentSession.MergeWith(duplicateDetector);
+                CollectionViewSource.GetDefaultView(ListViewFiles.ItemsSource).Refresh();
+            }
+            else
+            {
+                CurrentSession = duplicateDetector;
+                ListViewFiles.ItemsSource = CurrentSession.HashMap;
+            }
 
             CancellationTokenSource = null;
+
+            StatusBarItem1.Content = oldContent;
         }
 
 

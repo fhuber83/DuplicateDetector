@@ -91,9 +91,15 @@ namespace DuplicateDetectorCore
 
         }
 
+        /// <summary>
+        /// For each hash, this contains a list of files that have that hash
+        /// </summary>
         public Dictionary<String, HashSummaryItem>? HashMap = null;
 
-        public List<DuplicateFileInfo>? FileItems = null;
+        /// <summary>
+        /// List of all files
+        /// </summary>
+        //public List<DuplicateFileInfo>? FileItems = null;
 
         public enum ProcessingStage
         {
@@ -101,11 +107,12 @@ namespace DuplicateDetectorCore
             Processing,
             PostProcessing,
             Done,
+            Cancelled,
         }
 
-        public delegate void UpdateStatus(ProcessingStage stage, double percentage);
+        public delegate void UpdateStatus(ProcessingStage stage, double? percentage, int? total);
 
-        public async Task ProcessDirectoryAsync(string[] files, CancellationToken cancellationToken, UpdateStatus status)
+        public async Task ProcessDirectoryAsync(string[] files, bool keepSingleFiles, CancellationToken cancellationToken, UpdateStatus status)
         {
             var result = await Task.Run(() =>
             {
@@ -114,12 +121,22 @@ namespace DuplicateDetectorCore
                 long totalSize = 0L;
 
                 // Create a list of all files to check
+
+                if(status != null)
+                {
+                    status(ProcessingStage.Enumerating, null, 0);
+                }
+
                 var listOfFiles = new List<string>();
 
                 foreach (var file in files)
                 {
                     if (cancellationToken.IsCancellationRequested)
                     {
+                        if(status != null)
+                        {
+                            status(ProcessingStage.Cancelled, 0.0, null);
+                        }
                         return (false, null, null, 0L);
                     }
 
@@ -131,13 +148,18 @@ namespace DuplicateDetectorCore
                     {
                         listOfFiles.Add(file);
                     }
+
+                    if (status != null)
+                    {
+                        status(ProcessingStage.Enumerating, null, listOfFiles.Count);
+                    }
                 }
 
                 int maxCount = listOfFiles.Count;
 
                 int count = 0;
 
-                // Calculate hashes in parallel
+                // Calculate hashes in parallel (Processing stage)
                 var infoBag = new ConcurrentBag<DuplicateFileInfo>();
 
                 ParallelOptions parallelOptions = new()
@@ -157,7 +179,7 @@ namespace DuplicateDetectorCore
                         if(status != null)
                         {
                             var percentage = (count * 100.0) / maxCount;
-                            status(ProcessingStage.Processing, percentage);
+                            status(ProcessingStage.Processing, percentage, null);
                         }
                     });
                 }
@@ -169,12 +191,22 @@ namespace DuplicateDetectorCore
                 // Build duplicate dictionary
                 if(status != null)
                 {
-                    status(ProcessingStage.PostProcessing, 0.0);
+                    status(ProcessingStage.PostProcessing, 0.0, null);
                 }
 
 
+                // Post-processing stage
+                int num = infoBag.Count;
+                int done = 0;
+
                 foreach (var info in infoBag)
                 {
+                    if(status != null)
+                    {
+                        var percentage = (done * 100.0) / num;
+                        status(ProcessingStage.PostProcessing, percentage, null);
+                    }
+
                     // Copy item from bag to List
                     fileInfos.Add(info);
 
@@ -196,6 +228,8 @@ namespace DuplicateDetectorCore
                         item.Count = hashMap[info.Hash].Files.Count;
                     }
 
+
+                    // Update filenames string
                     var distinctNames = hashMap[info.Hash].Files.Select(x => x.FileName).Distinct().ToList();
 
                     {
@@ -213,6 +247,7 @@ namespace DuplicateDetectorCore
 
                         hashMap[info.Hash].FileNames = sb.ToString();
                     }
+
 
                     // Calculate the total number of bytes used for each hash
                     try
@@ -233,19 +268,22 @@ namespace DuplicateDetectorCore
                     {
                         return (false, null, null, 0L);
                     }
+
+                    done += 1;
                 }
 
                 return (true, fileInfos, hashMap, totalSize);
             });
 
 
+            // If operation completed successfully
             if (result.Item1)
             {
                 HashMap = result.hashMap;
 
                 foreach (var hash in HashMap.Keys.ToList())
                 {
-                    if (HashMap[hash].Files.Count == 1)
+                    if (HashMap[hash].Files.Count == 1 && !keepSingleFiles)
                     {
                         HashMap.Remove(hash);
                     }
@@ -253,7 +291,7 @@ namespace DuplicateDetectorCore
 
                 if(status != null)
                 {
-                    status(ProcessingStage.Done, 100.0);
+                    status(ProcessingStage.Done, 100.0, null);
                 }
             }
         }
@@ -303,6 +341,44 @@ namespace DuplicateDetectorCore
             }
 
             return sb.ToString();
+        }
+
+        public void MergeWith(DuplicateDetector other)
+        {
+            foreach(var hash in other.HashMap.Keys)
+            {
+                // Hash already exists, update existing items
+                if (HashMap.ContainsKey(hash))
+                {
+                    HashMap[hash].Files.AddRange(other.HashMap[hash].Files);
+                    HashMap[hash].TotalSize += other.HashMap[hash].TotalSize;
+
+                    var distinctNames = HashMap[hash].Files.Select(x => x.FileName).Distinct().ToList();
+
+                    {
+                        var sb = new StringBuilder();
+
+                        for (int i = 0; i < distinctNames.Count; i++)
+                        {
+                            sb.Append(distinctNames[i]);
+
+                            if (i < (distinctNames.Count - 1))
+                            {
+                                sb.Append(", ");
+                            }
+                        }
+
+                        HashMap[hash].FileNames = sb.ToString();
+                    }
+
+                }
+
+                // New hash, simply copy from other
+                else
+                {
+                    HashMap.Add(hash, other.HashMap[hash]);
+                }
+            }
         }
     }
 }

@@ -6,7 +6,6 @@
 	- Audio player
 	- PDF viewer
 	- ...
-- Allow adding folders to an already existing comparison
 
 ## UI
 - Show summary of duplicate files and their size
